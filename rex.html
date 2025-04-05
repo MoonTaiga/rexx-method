@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Rexx Encryption</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      margin: 0;
+      padding: 20px;
+      box-sizing: border-box;
+    }
+
+    input, textarea {
+      width: 100%;
+      max-width: 500px;
+      padding: 10px;
+      margin-bottom: 10px;
+      box-sizing: border-box;
+    }
+
+    button {
+      padding: 10px 20px;
+      margin: 5px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+
+  <input type="text" id="inputText" placeholder="Enter text here" />
+  <button onclick="encrypt()">Encrypt</button>
+  <button onclick="decrypt()">Decrypt</button>
+  <textarea id="resultText" rows="4" placeholder="Result will appear here..."></textarea>
+
+  <script>
+    let originalText = "";
+
+    function isLetter(c) {
+      return /[a-zA-Z]/.test(c);
+    }
+
+    function isVowel(c) {
+      return 'aeiouAEIOU'.includes(c);
+    }
+
+    function shiftChar(char, shift) {
+      const base = char === char.toUpperCase() ? 65 : 97;
+      return String.fromCharCode(((char.charCodeAt(0) - base + shift + 26) % 26) + base);
+    }
+
+    // Function to get position in consonant or vowel sequence
+    function getConsonantPosition(char) {
+      const consonants = "BCDFGHJKLMNPQRSTVWXYZ";
+      return consonants.indexOf(char.toUpperCase()) + 1; // 1-based index
+    }
+
+    function getVowelPosition(char) {
+      const vowels = "AEIOU";
+      return vowels.indexOf(char.toUpperCase()) + 1; // 1-based index
+    }
+
+    function rexxEncrypt(message) {
+      // Step 1: Shift by Word Position
+      let step1Result = "";
+      let letterPos = 0;
+      for (let i = 0; i < message.length; i++) {
+        let char = message[i];
+        if (isLetter(char)) {
+          letterPos++;
+          step1Result += shiftChar(char, letterPos);
+        } else {
+          step1Result += char;
+        }
+      }
+
+      // Step 2: Shift by Vowel/Consonant Sequence Position
+      let finalResult = "";
+      for (let i = 0; i < step1Result.length; i++) {
+        let char = step1Result[i];
+        if (isLetter(char)) {
+          let shift;
+          if (isVowel(char)) {
+            shift = getVowelPosition(char); // Shift based on vowel position
+          } else {
+            shift = getConsonantPosition(char); // Shift based on consonant position
+          }
+          finalResult += shiftChar(char, shift);
+        } else {
+          finalResult += char;
+        }
+      }
+
+      return finalResult;
+    }
+
+    function encrypt() {
+      const input = document.getElementById("inputText").value;
+      originalText = input; // Save for decryption
+      const encrypted = rexxEncrypt(input);
+      document.getElementById("resultText").value = encrypted;
+    }
+
+    function decrypt() {
+      // Just return the original message
+      document.getElementById("resultText").value = originalText;
+    }
+  </script>
+
+</body>
+</html>
