@@ -2,8 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Rexx Encryption</title>
+  <title>Rexx File Encryption</title>
   <style>
     body {
       font-family: sans-serif;
@@ -14,33 +13,37 @@
       min-height: 100vh;
       margin: 0;
       padding: 20px;
-      box-sizing: border-box;
     }
 
-    input, textarea {
+    input, textarea, button {
       width: 100%;
       max-width: 500px;
+      margin: 5px 0;
       padding: 10px;
-      margin-bottom: 10px;
-      box-sizing: border-box;
     }
 
     button {
-      padding: 10px 20px;
-      margin: 5px;
       cursor: pointer;
     }
   </style>
 </head>
 <body>
 
-  <input type="text" id="inputText" placeholder="Enter text here" />
-  <button onclick="encrypt()">Encrypt</button>
-  <button onclick="decrypt()">Decrypt</button>
-  <textarea id="resultText" rows="4" placeholder="Result will appear here..."></textarea>
+  <h2>Rexx File Encryptor/Decryptor</h2>
+
+  <input type="file" id="fileInput" />
+  <button onclick="encryptFile()">Encrypt File</button>
+  <button onclick="downloadEncrypted()">Download Encrypted (.rexx)</button>
+  <button onclick="decryptFile()">Decrypt .rexx File</button>
+  <button onclick="downloadDecrypted()">Download Decrypted (Original Format)</button>
+
+  <textarea id="resultText" rows="6" placeholder="Encrypted or Decrypted content will appear here..."></textarea>
 
   <script>
-    let originalText = "";
+    let encryptedContent = "";
+    let decryptedContent = "";
+    let originalFilename = "";
+    let originalExtension = "";
 
     function isLetter(c) {
       return /[a-zA-Z]/.test(c);
@@ -55,19 +58,17 @@
       return String.fromCharCode(((char.charCodeAt(0) - base + shift + 26) % 26) + base);
     }
 
-    // Function to get position in consonant or vowel sequence
     function getConsonantPosition(char) {
       const consonants = "BCDFGHJKLMNPQRSTVWXYZ";
-      return consonants.indexOf(char.toUpperCase()) + 1; // 1-based index
+      return consonants.indexOf(char.toUpperCase()) + 1;
     }
 
     function getVowelPosition(char) {
       const vowels = "AEIOU";
-      return vowels.indexOf(char.toUpperCase()) + 1; // 1-based index
+      return vowels.indexOf(char.toUpperCase()) + 1;
     }
 
     function rexxEncrypt(message) {
-      // Step 1: Shift by Word Position
       let step1Result = "";
       let letterPos = 0;
       for (let i = 0; i < message.length; i++) {
@@ -80,17 +81,11 @@
         }
       }
 
-      // Step 2: Shift by Vowel/Consonant Sequence Position
       let finalResult = "";
       for (let i = 0; i < step1Result.length; i++) {
         let char = step1Result[i];
         if (isLetter(char)) {
-          let shift;
-          if (isVowel(char)) {
-            shift = getVowelPosition(char); // Shift based on vowel position
-          } else {
-            shift = getConsonantPosition(char); // Shift based on consonant position
-          }
+          let shift = isVowel(char) ? getVowelPosition(char) : getConsonantPosition(char);
           finalResult += shiftChar(char, shift);
         } else {
           finalResult += char;
@@ -100,16 +95,122 @@
       return finalResult;
     }
 
-    function encrypt() {
-      const input = document.getElementById("inputText").value;
-      originalText = input; // Save for decryption
-      const encrypted = rexxEncrypt(input);
-      document.getElementById("resultText").value = encrypted;
+    function rexxDecrypt(encryptedMessage) {
+      // Step 1: Undo vowel/consonant shift
+      let step1Result = "";
+      for (let i = 0; i < encryptedMessage.length; i++) {
+        let char = encryptedMessage[i];
+        if (isLetter(char)) {
+          let shift = isVowel(char) ? getVowelPosition(char) : getConsonantPosition(char);
+          step1Result += shiftChar(char, -shift);
+        } else {
+          step1Result += char;
+        }
+      }
+
+      // Step 2: Undo letter position shift
+      let finalResult = "";
+      let letterPos = 0;
+      for (let i = 0; i < step1Result.length; i++) {
+        let char = step1Result[i];
+        if (isLetter(char)) {
+          letterPos++;
+          finalResult += shiftChar(char, -letterPos);
+        } else {
+          finalResult += char;
+        }
+      }
+
+      return finalResult;
     }
 
-    function decrypt() {
-      // Just return the original message
-      document.getElementById("resultText").value = originalText;
+    function encryptFile() {
+      const fileInput = document.getElementById('fileInput');
+      const file = fileInput.files[0];
+
+      if (!file) {
+        alert("Please select a file.");
+        return;
+      }
+
+      originalFilename = file.name.split('.').slice(0, -1).join('.');
+      originalExtension = file.name.split('.').pop();
+
+      const reader = new FileReader();
+
+      reader.onload = function(e) {
+        const content = e.target.result;
+        const encrypted = rexxEncrypt(content);
+
+        encryptedContent = `REXX_META:${originalFilename}.${originalExtension}\n` + encrypted;
+        document.getElementById("resultText").value = encryptedContent;
+        alert("Encryption complete. You can now download the .rexx file.");
+      };
+
+      reader.readAsText(file);
+    }
+
+    function downloadEncrypted() {
+      if (!encryptedContent) {
+        alert("No encrypted content to download.");
+        return;
+      }
+
+      const blob = new Blob([encryptedContent], { type: "text/plain" });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = originalFilename + ".rexx";
+      link.click();
+    }
+
+    function decryptFile() {
+      const fileInput = document.getElementById("fileInput");
+      const file = fileInput.files[0];
+
+      if (!file || !file.name.endsWith(".rexx")) {
+        alert("Please select a valid .rexx file to decrypt.");
+        return;
+      }
+
+      const reader = new FileReader();
+
+      reader.onload = function(e) {
+        const content = e.target.result;
+        const lines = content.split('\n');
+
+        if (!lines[0].startsWith("REXX_META:")) {
+          alert("Invalid or corrupted .rexx file.");
+          return;
+        }
+
+        const metaLine = lines.shift(); // remove metadata
+        const fileMeta = metaLine.replace("REXX_META:", "");
+        const [name, ext] = fileMeta.split('.');
+
+        originalFilename = name;
+        originalExtension = ext;
+
+        const encryptedData = lines.join('\n');
+        decryptedContent = rexxDecrypt(encryptedData);
+
+        document.getElementById("resultText").value = decryptedContent;
+        alert("Decryption complete. You can now download the original file.");
+      };
+
+      reader.readAsText(file);
+    }
+
+    function downloadDecrypted() {
+      if (!decryptedContent) {
+        alert("No decrypted content available.");
+        return;
+      }
+
+      const blob = new Blob([decryptedContent], { type: "text/plain" });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = originalFilename + "." + originalExtension;
+      link.click();
     }
   </script>
 
